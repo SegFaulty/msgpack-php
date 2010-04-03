@@ -7,7 +7,7 @@
  *
  * Author: S.Schwuchow http://www.Schottenland.de
  *
- * @TODO check unsigned int
+ * @TODO check signed int >16bit
  * @TODO raise more warning of php incompatiblities
  * @TODO check float twice
  * @TODO build a big and complex test binaryString from other implementation and test against it
@@ -83,13 +83,13 @@ class MsgPack_Coder {
 		} elseif( is_int($message) ) {
 			if( $message<0 ) {
 				if( $message>=-32 ) {
-					$messagePack.= chr(self::VALUE_INT_FIX_NEGATIVE+abs($message+1));
-				} elseif( $message>=-255 ) {
+					$messagePack.= pack('c',$message);
+				} elseif( $message>=-128 ) {
 					$messagePack.= chr(self::VALUE_INT_SIGNED_8);
-					$messagePack.= self::getNibblesFromInt(abs($message), 1);
+					$messagePack.= pack('c',$message); // signed char
 				} elseif( $message>=-65535 ) {
 					$messagePack.= chr(self::VALUE_INT_SIGNED_16);
-					$messagePack.= self::getNibblesFromInt(abs($message), 2);
+					$messagePack.= self::getNibblesFromInt(65536+$message, 2); // FF FF = -1
 				} elseif( $message>=-pow(2,32)-1 ) {
 					$messagePack.= chr(self::VALUE_INT_SIGNED_32);
 					$messagePack.= self::getNibblesFromInt(abs($message), 4);
@@ -198,8 +198,6 @@ class MsgPack_Coder {
 			$messagePack = substr($messagePack, 4);
 		} elseif( $messageByte<=127 ) {
 			$message = $messageByte;
-		} elseif( $messageByte>=self::VALUE_INT_FIX_NEGATIVE AND $messageByte<=self::VALUE_INT_FIX_NEGATIVE+31) {
-			$message = -1-($messageByte-self::VALUE_INT_FIX_NEGATIVE);
 		} elseif( $messageByte==self::VALUE_INT_UNSIGNED_8 ) {
 			$message = self::getIntFromMessagePack($messagePack, 1);
 		} elseif( $messageByte==self::VALUE_INT_UNSIGNED_16 ) {
@@ -208,10 +206,12 @@ class MsgPack_Coder {
 			$message = self::getIntFromMessagePack($messagePack, 4);
 		} elseif( $messageByte==self::VALUE_INT_UNSIGNED_64 ) {
 			$message = self::getIntFromMessagePack($messagePack, 8);
+		} elseif( $messageByte>=self::VALUE_INT_FIX_NEGATIVE AND $messageByte<=self::VALUE_INT_FIX_NEGATIVE+31) {
+			$message = -256+$messageByte;
 		} elseif( $messageByte==self::VALUE_INT_SIGNED_8 ) {
-			$message = 0-self::getIntFromMessagePack($messagePack, 1);
+			$message = -256+self::getIntFromMessagePack($messagePack, 1);
 		} elseif( $messageByte==self::VALUE_INT_SIGNED_16 ) {
-			$message = 0-self::getIntFromMessagePack($messagePack, 2);
+			$message = -65536+self::getIntFromMessagePack($messagePack, 2);
 		} elseif( $messageByte==self::VALUE_INT_SIGNED_32 ) {
 			$message = 0-self::getIntFromMessagePack($messagePack, 4);
 		} elseif( $messageByte==self::VALUE_INT_SIGNED_64 ) {
